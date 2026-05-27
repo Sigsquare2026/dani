@@ -242,4 +242,91 @@ function closeModal() {
 
 modal.onclick = closeModal;
 
-filterVideos("엑셀시그", document.querySelector(".tab"));
+videoList.innerHTML = "";
+
+function loadLiveBox() {
+
+  const liveBox =
+  document.getElementById("liveBox");
+
+  fetch(
+    "https://api-channel.sooplive.com/v1.1/channel/0929kelly/home/section/broad"
+  )
+
+    .then(res => res.json())
+
+    .then(data => {
+
+      console.log("SOOP 라이브 API:", data);
+
+      const broad = data.data || data;
+
+      // 방송중 아닐때
+      if (!broad || !broad.broadNo) {
+
+        liveBox.innerHTML = `
+          <div class="offline-box">
+            현재 방송 중이 아닙니다.
+          </div>
+        `;
+
+        return;
+      }
+
+      // 방송중일때
+      liveBox.innerHTML = `
+
+        <a class="live-card"
+          href="https://play.sooplive.co.kr/0929kelly/${broad.broadNo}"
+          target="_blank">
+
+          <img
+            class="live-thumb"
+            src="${broad.broadThumb || ''}">
+
+          <div class="live-info">
+
+            <div class="live-badge">
+              LIVE
+            </div>
+
+            <div class="live-name">
+              이다니
+            </div>
+
+            <div class="live-title">
+              ${broad.broadTitle || "방송 중입니다"}
+            </div>
+
+            <div class="live-viewer">
+              시청자 ${broad.currentSumViewer || 0}명
+            </div>
+
+          </div>
+
+        </a>
+      `;
+    })
+
+.catch(err => {
+
+  console.error(err);
+
+  liveBox.innerHTML = `
+    <a
+      class="offline-box"
+      href="https://www.sooplive.com/station/0929kelly/board/109545871"
+      target="_blank">
+
+      지금 다니는 휴식중❤️ 오방공 확인하기!
+
+    </a>
+  `;
+});
+}
+
+loadLiveBox();
+
+setInterval(() => {
+  loadLiveBox();
+}, 60000);
