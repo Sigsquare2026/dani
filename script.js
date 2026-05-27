@@ -39,7 +39,7 @@ const videos = [
     category: "직캠",
     number: "열혈",
     title: "다니감지기",
-    thumbnail: "thumbnails/직캠/다니감지기.gif",
+    thumbnail: "https://pub-8523117b63a24b1799623892e83a57fd.r2.dev/thumbnails/%EC%A7%81%EC%BA%A0/%EB%8B%A4%EB%8B%88%EA%B0%90%EC%A7%80%EA%B8%B0.gif",
 
     video: "https://pub-8523117b63a24b1799623892e83a57fd.r2.dev/videos/%EC%A7%81%EC%BA%A0/%EB%8B%A4%EB%8B%88%EA%B0%90%EC%A7%80%EA%B8%B0/1%EC%A7%80%EA%B8%B0-%EB%8B%A4%EB%8B%88%EA%B0%90%EC%A7%80%EA%B8%B0.mp4",
 
@@ -94,7 +94,7 @@ const videos = [
   category: "직캠",
   number: "열혈",
   title: "구르는다니",
-  thumbnail: "thumbnails/직캠/구르는다니.gif",
+  thumbnail: "https://pub-8523117b63a24b1799623892e83a57fd.r2.dev/thumbnails/%EC%A7%81%EC%BA%A0/%EA%B5%AC%EB%A5%B4%EB%8A%94%EB%8B%A4%EB%8B%88.gif",
 
   video: "https://pub-8523117b63a24b1799623892e83a57fd.r2.dev/videos/%EC%A7%81%EC%BA%A0/%EA%B5%AC%EB%A5%B4%EB%8A%94%EB%8B%A4%EB%8B%88/1%EA%B5%AC%EB%A5%B4-%EA%B5%AC%EB%A5%B4%EB%8A%94%EB%8B%A4%EB%8B%88.mp4",
 
