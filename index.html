@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>영상 리스트</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="top-menu">
+    <button class="tab active" onclick="filterVideos('엑셀시그', this)">엑셀시그</button>
+    <button class="tab" onclick="filterVideos('갠방시그', this)">갠방시그</button>
+    <button class="tab" onclick="filterVideos('직캠', this)">직캠</button>
+  </div>
+
+  <div class="video-list" id="videoList"></div>
+
+  <div class="modal" id="modal"></div>
+
+<script src="script.js"></script>
+</body>
+</html>

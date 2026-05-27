@@ -1,0 +1,194 @@
+body {
+  font-family: Arial, sans-serif;
+  padding: 20px;
+  background: white;
+}
+
+.top-menu {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 25px;
+}
+
+.tab {
+  padding: 10px 18px;
+  border: none;
+  background: #ffe4f1;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ff4fa3;
+}
+
+.tab.active {
+  background: #ff4fa3;
+  color: white;
+}
+
+.video-list {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 28px 18px;
+}
+
+.card {
+  cursor: pointer;
+}
+
+.thumb-box {
+  position: relative;
+}
+
+.thumb-box img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+
+.play {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: red;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  font-size: 15px;
+}
+
+.title {
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.num {
+  background: #dbeafe;
+  color: #2563eb;
+  padding: 4px 8px;
+  border-radius: 12px;
+  margin-right: 6px;
+  font-size: 12px;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.modal-box {
+  width: 86%;
+  max-width: 1020px;
+  background: white;
+  border-radius: 14px;
+  padding: 20px;
+  position: relative;
+}
+
+.close {
+  position: absolute;
+  right: 18px;
+  top: 15px;
+  border: none;
+  background: none;
+  font-size: 28px;
+  cursor: pointer;
+}
+
+.modal-box h2 {
+  margin: 0 0 16px;
+  font-size: 20px;
+}
+
+.main-video {
+  width: 100%;
+  max-height: 560px;
+  background: black;
+  border-radius: 8px;
+}
+
+.sub-title {
+  margin-top: 14px;
+  margin-bottom: 10px;
+  font-size: 15px;
+}
+
+.clip-list {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.clip {
+  width: 130px;
+  flex: 0 0 auto;
+  cursor: pointer;
+}
+
+.clip-thumb {
+  position: relative;
+}
+
+.clip-thumb img {
+  width: 130px;
+  height: 74px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.clip-date {
+  position: absolute;
+  top: 4px;
+  left: 5px;
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+  text-shadow: 1px 1px 3px black;
+}
+
+.clip-time {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  background: rgba(0,0,0,0.75);
+  color: white;
+  font-size: 11px;
+  padding: 2px 4px;
+}
+
+.date-button-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.date-btn {
+  border: none;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ffe1f0, #fff0f7);
+  color: #ff3f9f;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 3px 8px rgba(255, 79, 163, 0.18);
+  transition: 0.2s;
+}
+
+.date-btn:hover {
+  background: linear-gradient(135deg, #ff4fa3, #ff7abb);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 12px rgba(255, 79, 163, 0.35);
+}
