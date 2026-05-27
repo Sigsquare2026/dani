@@ -13,12 +13,24 @@
 
 <div id="liveBox"></div>
 
-  <div class="top-menu">
+<div class="top-menu">
 
-<button class="tab" onclick="filterVideos('엑셀시그', this)">엑셀시그</button>
-    <button class="tab" onclick="filterVideos('갠방시그', this)">갠방시그</button>
-    <button class="tab" onclick="filterVideos('직캠', this)">직캠</button>
-  </div>
+  <button class="tab" onclick="filterVideos('엑셀시그', this)">엑셀시그</button>
+  <button class="tab" onclick="filterVideos('갠방시그', this)">갠방시그</button>
+  <button class="tab" onclick="filterVideos('직캠', this)">직캠</button>
+
+  <input
+    type="text"
+    id="searchInput"
+    class="search-input"
+    placeholder="검색..."
+    oninput="searchVideos()">
+
+</div>
+
+<div class="sub-category-wrapper">
+  <div id="subCategoryBar" class="sub-category-bar"></div>
+</div>
 
   <div class="video-list" id="videoList"></div>
 

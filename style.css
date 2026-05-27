@@ -6,10 +6,29 @@ body {
 
 .top-menu {
   display: flex;
+  align-items: center;
   gap: 10px;
   margin-bottom: 25px;
 }
 
+.search-input {
+  margin-left: auto;
+  width: 230px;
+  padding: 11px 16px;
+  border: 2px solid #ffd3e8;
+  border-radius: 999px;
+  font-size: 14px;
+  outline: none;
+  color: #ff4fa3;
+}
+
+.search-input::placeholder {
+  color: #ff9acb;
+}
+
+.search-input:focus {
+  border-color: #ff4fa3;
+}
 .tab {
   padding: 10px 18px;
   border: none;
@@ -288,4 +307,55 @@ body {
   display: block;
 
   box-shadow: none;
+}
+
+.sub-category-wrapper {
+  width: 100%;
+  margin-top: -12px;
+  margin-bottom: 22px;
+}
+
+.sub-category-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+.sub-btn {
+
+  background: transparent;
+
+  color: #ff4fa3;
+
+  padding: 7px 16px;
+
+  border-radius: 999px;
+
+  border: 2px solid #ffd3e8;
+
+  font-size: 13px;
+
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition: 0.2s;
+}
+
+.sub-btn.active {
+
+  background: #ff4fa3;
+
+  color: white;
+}
+
+.sub-btn:hover,
+.sub-btn.active {
+
+  background: #ff4fa3;
+
+  color: white;
+
+  border-color: #ff4fa3;
 }

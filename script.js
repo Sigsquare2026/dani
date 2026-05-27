@@ -1,3 +1,6 @@
+const subCategoryBar =
+document.getElementById("subCategoryBar");
+
 const videos = [
   {
     category: "엑셀시그",
@@ -1205,6 +1208,7 @@ function filterVideos(category, element) {
   const filtered = videos.filter(item => item.category === category);
 
   renderVideos(filtered);
+renderSubCategories(category);
 
   document.querySelectorAll(".tab").forEach(tab => {
     tab.classList.remove("active");
@@ -1358,3 +1362,100 @@ loadLiveBox();
 setInterval(() => {
   loadLiveBox();
 }, 60000);
+
+function searchVideos() {
+  const keyword = document
+    .getElementById("searchInput")
+    .value
+    .trim()
+    .toLowerCase();
+
+  if (!keyword) {
+    videoList.innerHTML = "";
+    return;
+  }
+
+  const result = videos.filter(item =>
+    item.title.toLowerCase().includes(keyword) ||
+    item.number.toLowerCase().includes(keyword) ||
+    item.category.toLowerCase().includes(keyword)
+  );
+
+  renderVideos(result);
+
+  document.querySelectorAll(".tab").forEach(tab => {
+    tab.classList.remove("active");
+  });
+}
+
+function renderSubCategories(category) {
+
+  subCategoryBar.innerHTML = "";
+
+  // 엑셀시그만 표시
+  if (category !== "엑셀시그") {
+    return;
+  }
+
+  const ranges = [
+
+    "1000~5000",
+    "5001~10000",
+    "10001~20000",
+    "20001~30000",
+    "30000~"
+
+  ];
+
+  ranges.forEach(range => {
+
+    const btn =
+    document.createElement("button");
+
+    btn.className = "sub-btn";
+
+    btn.innerText = range;
+
+    btn.onclick = () => {
+      filterByRange(range, btn);
+    };
+
+    subCategoryBar.appendChild(btn);
+  });
+}
+
+function filterByRange(range, button) {
+
+  document.querySelectorAll(".sub-btn")
+    .forEach(btn => {
+      btn.classList.remove("active");
+    });
+
+  button.classList.add("active");
+
+  let min = 0;
+  let max = Infinity;
+
+  if (range.includes("~")) {
+
+    const split = range.split("~");
+
+    min = Number(split[0]);
+
+    max = split[1]
+      ? Number(split[1])
+      : Infinity;
+  }
+
+  const filtered = videos.filter(item => {
+
+    if (item.category !== "엑셀시그")
+      return false;
+
+    const num = Number(item.number);
+
+    return num >= min && num <= max;
+  });
+
+  renderVideos(filtered);
+}
