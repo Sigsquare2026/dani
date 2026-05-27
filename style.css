@@ -28,11 +28,17 @@ body {
 
 .video-list {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 28px 18px;
+
+  grid-template-columns:
+  repeat(auto-fill, minmax(220px, 220px));
+
+  justify-content: center;
+
+  gap: 22px 18px;
 }
 
 .card {
+  width: 220px;
   cursor: pointer;
 }
 
@@ -67,8 +73,8 @@ body {
 }
 
 .num {
-  background: #dbeafe;
-  color: #2563eb;
+  background: #ffe4f1;
+  color: #ff4fa3;
   padding: 4px 8px;
   border-radius: 12px;
   margin-right: 6px;
@@ -235,7 +241,7 @@ body {
   transition: 0.25s;
   padding: 20px;
   box-sizing: border-box;
-}오전 1:22 2026-05-28
+}
 
 .live-card:hover {
   transform: scale(1.01);
