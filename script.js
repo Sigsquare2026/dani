@@ -868,8 +868,8 @@ const videos = [
 {
   category: "엑셀시그",
   number: "2002",
-  title: "https://sig.cnine.kr/signature/20260328/183f739a2fdb4e4692d6cfe263ef215d.png",
-  thumbnail: "공란",
+  title: "젤리젤리",
+  thumbnail: "https://sig.cnine.kr/signature/20260328/183f739a2fdb4e4692d6cfe263ef215d.png",
 
   video: "공란",
 
@@ -940,8 +940,8 @@ const videos = [
 {
   category: "엑셀시그",
   number: "2021",
-  title: "https://sig.cnine.kr/signature/20260328/98682ab2c0204ae1a34bedd6d1ebd81f.png",
-  thumbnail: "공란",
+  title: "하얀그리움",
+  thumbnail: "https://sig.cnine.kr/signature/20260328/98682ab2c0204ae1a34bedd6d1ebd81f.png",
 
   video: "공란",
 
