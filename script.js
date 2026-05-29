@@ -1548,3 +1548,25 @@ fetch("https://chapi.sooplive.com/api/0929kelly/board/?per_page=5&start_date=&en
 }
 
 loadNoticeBox();
+
+
+function openPromiseModal(event) {
+  event.preventDefault();
+
+  const modal = document.getElementById("modal");
+
+  modal.innerHTML = `
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <button class="close" onclick="closeModal()">×</button>
+
+      <h2>📜 다니공약</h2>
+
+      <img
+        src="https://pub-8523117b63a24b1799623892e83a57fd.r2.dev/%EA%B3%B5%EC%95%BD%ED%91%9C.png"
+        alt="다니공약"
+        style="width:100%; border-radius:12px; display:block;">
+    </div>
+  `;
+
+  modal.style.display = "flex";
+}
