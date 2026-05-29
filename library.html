@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>📁다니자료실📁</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <a href="index.html" class="back-btn">
+    ← 메인으로
+  </a>
+
+  <div class="top-menu">
+
+    <button class="tab" onclick="filterLibrary('profile', this)">
+      👧🏻다니 프로필
+    </button>
+
+    <button class="tab" onclick="filterLibrary('photo', this)">
+      📷다니 사진
+    </button>
+
+    <button class="tab" onclick="filterLibrary('video', this)">
+      📽️배경영상
+    </button>
+
+  </div>
+
+  <div class="video-list" id="libraryList"></div>
+
+  <div class="modal" id="modal"></div>
+
+  <script src="library.js"></script>
+
+</body>
+</html>
