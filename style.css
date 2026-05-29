@@ -359,9 +359,33 @@ body {
 .sub-category-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-start;
+  gap: 10px;
+  margin: 12px 0 24px;
 }
+
+.sub-btn {
+  background: transparent;
+  color: #ff4fa3;
+
+  padding: 7px 16px;
+
+  border-radius: 999px;
+  border: 2px solid #ffd3e8;
+
+  font-size: 13px;
+  font-weight: 700;
+
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.sub-btn:hover,
+.sub-btn.active {
+  background: #ff4fa3;
+  color: white;
+  border-color: #ff4fa3;
+}
+
  //다니시그, 메인으로 버튼//
 
 .sub-btn {
