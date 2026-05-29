@@ -1277,50 +1277,44 @@ modal.onclick = closeModal;
 videoList.innerHTML = "";
 
 function loadLiveBox() {
+  const liveBox = document.getElementById("liveBox");
 
-  const liveBox =
-  document.getElementById("liveBox");
+  if (!liveBox) return;
 
-  fetch(
-    "https://api-channel.sooplive.com/v1.1/channel/0929kelly/home/section/broad"
-  )
-
+  fetch("https://api-channel.sooplive.com/v1.1/channel/0929kelly/home/section/broad")
     .then(res => res.json())
-
     .then(data => {
-
       console.log("SOOP 라이브 API:", data);
 
       const broad = data.data || data;
 
-      // 방송중 아닐때
+      // 방송중 아닐 때
       if (!broad || !broad.broadNo) {
-
         liveBox.innerHTML = `
-          <div class="offline-box">
-            현재 방송 중이 아닙니다.
-          </div>
+          <a
+            class="offline-box"
+            href="https://www.sooplive.com/station/0929kelly/board/109545871"
+            target="_blank">
+            지금 다니는 휴식중❤️ 오방공 확인하기!
+          </a>
         `;
-
         return;
       }
 
-      // 방송중일때
+      // 방송중일 때
       liveBox.innerHTML = `
-
-        <a class="live-card"
+        <a
+          class="live-card"
           href="https://play.sooplive.co.kr/0929kelly/${broad.broadNo}"
           target="_blank">
 
           <img
             class="live-thumb"
-            src="${broad.broadThumb || ''}">
+            src="https://liveimg.sooplive.co.kr/${broad.broadNo}.jpg?${Date.now()}"
+            alt="라이브 썸네일">
 
           <div class="live-info">
-
-            <div class="live-badge">
-              LIVE
-            </div>
+            <div class="live-badge">LIVE</div>
 
             <div class="live-name">
               이다니
@@ -1333,28 +1327,23 @@ function loadLiveBox() {
             <div class="live-viewer">
               시청자 ${broad.currentSumViewer || 0}명
             </div>
-
           </div>
-
         </a>
       `;
     })
+    .catch(err => {
+      console.error(err);
 
-.catch(err => {
-
-  console.error(err);
-
-  liveBox.innerHTML = `
-    <a
-      class="offline-box"
-      href="https://www.sooplive.com/station/0929kelly/board/109545871"
-      target="_blank">
-
-      지금 다니는 휴식중❤️ 오방공 확인하기!
-
-    </a>
-  `;
-});
+      // API 오류일 때도 방송아님 박스로 표시
+      liveBox.innerHTML = `
+        <a
+          class="offline-box"
+          href="https://www.sooplive.com/station/0929kelly/board/109545871"
+          target="_blank">
+          지금 다니는 휴식중❤️ 오방공 확인하기!
+        </a>
+      `;
+    });
 }
 
 loadLiveBox();
@@ -1459,3 +1448,103 @@ function filterByRange(range, button) {
 
   renderVideos(filtered);
 }
+
+function loadNoticeBox() {
+
+  const noticeBox =
+  document.getElementById("noticeBox");
+
+  if (!noticeBox) return;
+
+fetch("https://chapi.sooplive.com/api/0929kelly/board/?per_page=5&start_date=&end_date=&field=title,contents,user_nick,user_id,hashtags&keyword=&type=all&order_by=reg_date&board_number=&page=1")
+
+    .then(res => res.json())
+
+    .then(data => {
+
+      console.log("공지 API", data);
+
+      const posts = (
+  data.data ||
+  data.posts ||
+  data.list ||
+  []
+).slice(0, 5);
+
+      if (!posts.length) {
+
+        noticeBox.innerHTML = `
+          <div class="notice-title">
+            📢 공지사항
+          </div>
+
+          <div class="notice-empty">
+            등록된 공지가 없습니다.
+          </div>
+        `;
+
+        return;
+      }
+
+      noticeBox.innerHTML = `
+        <div class="notice-title">
+          📢 공지사항
+        </div>
+
+        ${posts.map(post => `
+
+          <a
+            class="notice-item"
+
+            href="https://www.sooplive.com/station/0929kelly/post/${post.title_no}"
+
+            target="_blank">
+
+            <div class="notice-text">
+              ${post.title_name || post.title}
+            </div>
+
+            <div class="notice-meta">
+
+              ${post.reg_date || ""}
+
+            </div>
+
+          </a>
+
+        `).join("")}
+
+<div class="notice-more-wrap">
+
+  <a
+    class="notice-more-btn"
+
+    href="https://www.sooplive.com/station/0929kelly/board"
+
+    target="_blank">
+
+    공지 더보기 →
+
+  </a>
+
+</div>
+      `;
+    })
+
+    .catch(err => {
+
+      console.error(err);
+
+      noticeBox.innerHTML = `
+        <div class="notice-title">
+          📢 공지사항
+        </div>
+
+        <div class="notice-empty">
+          공지를 불러올 수 없습니다.
+        </div>
+      `;
+    });
+}
+
+loadNoticeBox();
