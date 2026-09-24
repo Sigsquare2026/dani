@@ -4,9 +4,9 @@
 
 ## 설치
 
-1. 실제 다니랜드 사이트가 사용하는 Supabase DB에 `schema.sql`을 적용합니다. 별도/빈 Supabase 프로젝트에 적용하지 마세요.
+1. 실제 다니랜드 Readdy Backend (`k2tbnmtgvh34rdbxdjk2.helloreaddy.com`)에만 `schema.sql`을 적용합니다. 기존 `songpyeon_bridge_token_ok(text)` RPC를 확인하고 PostgREST 스키마 캐시를 갱신합니다. 외부 Supabase 프로젝트에는 적용하지 마세요.
 2. `npm ci`를 실행합니다.
-3. `.env.example`의 세 값을 Railway 서비스 환경변수로 등록합니다. `SUPABASE_SERVICE_ROLE_KEY`는 절대로 웹 프론트엔드나 공개 저장소에 넣지 않습니다.
+3. `.env.example`의 네 값을 Railway 서비스 환경변수로 등록합니다. `SUPABASE_ANON_KEY`는 게이트웨이 통과용이고, 새 RPC는 `SOOP_BRIDGE_TOKEN`을 검증합니다. 브릿지 토큰과 키 값은 코드와 공개 저장소에 넣지 마세요. `service_role` 키는 사용하지 않습니다.
 4. Railway의 지속 실행 Worker로 `npm start`를 실행합니다. 공개 도메인과 cron은 필요 없습니다. 재시작 정책은 항상 재시작으로 설정합니다.
 
 5초마다 유저별 증가량만 전송합니다. 배치 ID를 이용해 HTTP 응답 유실 뒤 재시도하더라도 같은 배치가 다시 더해지지 않도록 합니다. 수집기 자체가 멈췄거나 재시작될 때 아직 DB에 저장하지 못한 최대 몇 초간의 이벤트는 복원할 수 없습니다. SOOP 연결 끊김과 저장 실패 로그를 감시해야 합니다. 비공식 SOOP 라이브러리 기반이라 SOOP의 통신 방식 변경에 따라 수정이 필요할 수 있습니다.

@@ -1,4 +1,5 @@
--- Apply to the actual DaniLand/Readdy Supabase database, not another project.
+-- Apply ONLY to the DaniLand Readdy Backend k2tbnmtgvh34rdbxdjk2.
+-- Existing public.songpyeon_bridge_token_ok(text) must already exist.
 create table if not exists public.soop_chat_broadcasts (
   broadcast_no text primary key,
   broadcast_date date not null,
@@ -30,19 +31,20 @@ alter table public.soop_chat_counts enable row level security;
 alter table public.soop_chat_batches enable row level security;
 
 revoke all on public.soop_chat_broadcasts, public.soop_chat_counts, public.soop_chat_batches from anon, authenticated;
-grant select, insert, update on public.soop_chat_broadcasts, public.soop_chat_counts to service_role;
-grant select, insert on public.soop_chat_batches to service_role;
 
 create or replace function public.soop_chat_add_batch(
-  p_batch_id uuid, p_broadcast_no text, p_broadcast_date date, p_rows jsonb
+  p_token text, p_batch_id uuid, p_broadcast_no text, p_broadcast_date date, p_rows jsonb
 ) returns boolean
-language plpgsql security invoker set search_path = '' as $$
+language plpgsql security definer set search_path = '' as $$
 declare item jsonb;
 declare affected integer;
 declare uid text;
 declare label text;
 declare quantity integer;
 begin
+  if not coalesce(public.songpyeon_bridge_token_ok(p_token), false) then
+    raise exception 'invalid bridge token';
+  end if;
   if p_broadcast_no !~ '^[0-9]+$' or p_broadcast_date is null
      or jsonb_typeof(p_rows) is distinct from 'array' or jsonb_array_length(p_rows) > 1000 then
     raise exception 'invalid batch';
@@ -72,7 +74,9 @@ begin
 end;
 $$;
 
-revoke all on function public.soop_chat_add_batch(uuid, text, date, jsonb) from public, anon, authenticated;
-grant execute on function public.soop_chat_add_batch(uuid, text, date, jsonb) to service_role;
+revoke all on function public.soop_chat_add_batch(text, uuid, text, date, jsonb) from public, anon, authenticated;
+grant execute on function public.soop_chat_add_batch(text, uuid, text, date, jsonb) to anon;
+
+-- Readdy PostgREST may need: notify pgrst, 'reload schema';
 
 -- Public leaderboard reading and point settlement are separate later steps.

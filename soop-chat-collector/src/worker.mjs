@@ -4,9 +4,10 @@ import { Counter, broadcastDate, getBroadcast } from './collector.mjs';
 
 const streamerId = process.env.SOOP_STREAMER_ID?.trim();
 const apiUrl = process.env.SUPABASE_URL?.replace(/\/$/, '');
-const apiKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (!streamerId || !apiUrl || !apiKey) {
-  console.error('Required: SOOP_STREAMER_ID, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY');
+const apiKey = process.env.SUPABASE_ANON_KEY;
+const bridgeToken = process.env.SOOP_BRIDGE_TOKEN;
+if (!streamerId || !apiUrl || !apiKey || !bridgeToken) {
+  console.error('Required: SOOP_STREAMER_ID, SUPABASE_URL, SUPABASE_ANON_KEY, SOOP_BRIDGE_TOKEN');
   process.exit(1);
 }
 const { SoopClient, SoopChatEvent } = await import('soop-extension');
@@ -43,7 +44,7 @@ async function flush() {
     }
     while (outbox.length) {
       const batch = outbox[0];
-      await rpc('soop_chat_add_batch', { p_batch_id: batch.batch_id, p_broadcast_no: batch.broadcast_no, p_broadcast_date: batch.broadcast_date, p_rows: batch.rows });
+      await rpc('soop_chat_add_batch', { p_token: bridgeToken, p_batch_id: batch.batch_id, p_broadcast_no: batch.broadcast_no, p_broadcast_date: batch.broadcast_date, p_rows: batch.rows });
       outbox.shift();
     }
   } catch (error) {
