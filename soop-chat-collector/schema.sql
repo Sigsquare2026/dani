@@ -77,6 +77,6 @@ $$;
 revoke all on function public.soop_chat_add_batch(text, uuid, text, date, jsonb) from public, anon, authenticated;
 grant execute on function public.soop_chat_add_batch(text, uuid, text, date, jsonb) to anon;
 
--- Readdy PostgREST may need: notify pgrst, 'reload schema';
+notify pgrst, 'reload schema';
 
 -- Public leaderboard reading and point settlement are separate later steps.
