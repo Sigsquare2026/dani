@@ -101,6 +101,9 @@ async function poll() {
 
 setInterval(() => { void poll(); }, 15000);
 setInterval(() => { void flush(); }, 5000);
+const tokenValid = await rpc('songpyeon_bridge_token_ok', { p_token: bridgeToken });
+if (tokenValid !== true) throw new Error('SOOP bridge token verification failed');
+console.log('Readdy RPC and bridge token verified');
 await poll();
 console.log('collector ready');
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, async () => {
