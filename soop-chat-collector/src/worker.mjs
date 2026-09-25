@@ -20,6 +20,15 @@ let flushing = false;
 let outbox = [];
 let currentConnection = null;
 let connectionStartedAt = 0;
+let reconnectTimer = null;
+
+function reconnectSoon(connection) {
+  if (stopping || currentConnection !== connection || reconnectTimer) return;
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    void poll();
+  }, 1000);
+}
 
 async function rpc(name, data) {
   const response = await fetch(`${apiUrl}/rest/v1/rpc/${name}`, {
@@ -92,8 +101,15 @@ async function poll() {
     connection.on(SoopChatEvent.CHAT, receive);
     connection.on(SoopChatEvent.EMOTICON, receive);
     connection.on(SoopChatEvent.CONNECT, () => console.log(`chat connected: ${thisBno}`));
-    connection.on(SoopChatEvent.DISCONNECT, () => console.log(`chat disconnected: ${thisBno}`));
+    connection.on(SoopChatEvent.DISCONNECT, () => {
+      console.log(`chat disconnected: ${thisBno}`);
+      reconnectSoon(connection);
+    });
     await connection.connect();
+    connection.ws?.on('close', (code, reason) => {
+      console.log(`socket closed: ${thisBno}, code ${code}${reason?.length ? `, reason ${reason.toString().slice(0, 100)}` : ''}`);
+      reconnectSoon(connection);
+    });
     connection.ws?.on('error', error => console.error('socket:', error.message));
   } catch (error) { console.error('SOOP poll/connect:', error.message); }
   finally { polling = false; }
