@@ -18,8 +18,8 @@ let stopping = false;
 let polling = false;
 let flushing = false;
 let outbox = [];
-let connected = false;
 let currentConnection = null;
+let connectionStartedAt = 0;
 
 async function rpc(name, data) {
   const response = await fetch(`${apiUrl}/rest/v1/rpc/${name}`, {
@@ -44,7 +44,9 @@ async function flush() {
     }
     while (outbox.length) {
       const batch = outbox[0];
-      await rpc('soop_chat_add_batch', { p_token: bridgeToken, p_batch_id: batch.batch_id, p_broadcast_no: batch.broadcast_no, p_broadcast_date: batch.broadcast_date, p_rows: batch.rows });
+      const saved = await rpc('soop_chat_add_batch', { p_token: bridgeToken, p_batch_id: batch.batch_id, p_broadcast_no: batch.broadcast_no, p_broadcast_date: batch.broadcast_date, p_rows: batch.rows });
+      if (saved !== true && saved !== false) throw new Error('soop_chat_add_batch returned an unexpected result');
+      console.log(`chat batch ${saved ? 'saved' : 'already saved'}: ${batch.broadcast_no}, ${batch.rows.length} users, ${batch.rows.reduce((sum, row) => sum + row.count, 0)} messages`);
       outbox.shift();
     }
   } catch (error) {
@@ -63,7 +65,6 @@ async function poll() {
         await flush();
         console.log(`broadcast ended: ${active.bno}`);
         active = null;
-        connected = false;
         await currentConnection?.disconnect().catch(() => {});
         currentConnection = null;
       }
@@ -72,15 +73,16 @@ async function poll() {
     if (!active || active.bno !== bno) {
       if (active) await flush();
       active = { bno, date: broadcastDate(new Date()) };
-      connected = false;
       await currentConnection?.disconnect().catch(() => {});
       currentConnection = null;
       console.log(`broadcast detected: ${bno}, ${active.date} KST`);
     }
-    if (connected && currentConnection?.ws?.readyState === 1) return;
+    const wsState = currentConnection?.ws?.readyState;
+    if (wsState === 1 || (wsState === 0 && Date.now() - connectionStartedAt < 30000)) return;
     await currentConnection?.disconnect().catch(() => {});
     const connection = client.chat({ streamerId });
     currentConnection = connection;
+    connectionStartedAt = Date.now();
     connection.createAgent = () => new Agent({ rejectUnauthorized: true });
     const thisBno = bno;
     const receive = event => {
@@ -90,12 +92,10 @@ async function poll() {
     connection.on(SoopChatEvent.CHAT, receive);
     connection.on(SoopChatEvent.EMOTICON, receive);
     connection.on(SoopChatEvent.CONNECT, () => console.log(`chat connected: ${thisBno}`));
-    connection.on(SoopChatEvent.DISCONNECT, () => { if (currentConnection === connection) connected = false; console.log(`chat disconnected: ${thisBno}`); });
+    connection.on(SoopChatEvent.DISCONNECT, () => console.log(`chat disconnected: ${thisBno}`));
     await connection.connect();
-    connection.ws?.on('close', () => { if (currentConnection === connection) connected = false; });
-    connection.ws?.on('error', error => { if (currentConnection === connection) connected = false; console.error('socket:', error.message); });
-    connected = connection.ws?.readyState === 1;
-  } catch (error) { connected = false; console.error('SOOP poll/connect:', error.message); }
+    connection.ws?.on('error', error => console.error('socket:', error.message));
+  } catch (error) { console.error('SOOP poll/connect:', error.message); }
   finally { polling = false; }
 }
 
