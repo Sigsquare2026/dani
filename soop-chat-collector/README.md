@@ -14,8 +14,8 @@
 
 ## 방송 감지 시각 기록
 
-운영 Readdy Backend에 `broadcast-detection-migration.sql`을 적용한 뒤 Railway 서비스에 `SOOP_RECORD_BROADCAST_TIMES=true`를 추가합니다. 새 BNO가 발견되면 `soop_chat_broadcasts.first_detected_at`에 한국 시각 기준 초까지 기록하고, Railway 로그에도 `YYYY-MM-DD HH:mm:ss KST`로 남깁니다. RPC 저장에 실패하면 실행 중 재시도하며 기존 채팅 수집과 저장은 계속합니다.
+운영 Readdy Backend에 `broadcast-detection-migration.sql`을 적용한 뒤 Railway 서비스에 `SOOP_RECORD_BROADCAST_TIMES=true`를 추가합니다. 새 BNO가 발견되면 `soop_chat_broadcasts.first_detected_at`에 감지 시각을 기록하고, SOOP 방송국 API의 `broad_no`가 같은 BNO일 때 제공되는 `station.broad_start`를 `soop_started_at`에 별도로 기록합니다. 두 시각은 Railway 로그에도 `YYYY-MM-DD HH:mm:ss KST`로 남깁니다. 시작 시각 조회 실패 시 방송 중 재시도하고, 기존 채팅 수집과 저장은 계속합니다.
 
-이 값은 **수집기가 방송을 처음 감지한 시각**입니다. 15초 간격 조회와 네트워크 지연 때문에 SOOP 서버의 실제 방송 시작 시각과 다를 수 있습니다. 기존 행의 `created_at`은 첫 배치 저장 시각이며 시작 시각으로 취급하지 않습니다. 과거 방송에 실제 시작 시각을 소급해서 채우지 않습니다.
+`soop_started_at`은 **SOOP이 제공한 방송 시작 시각**입니다. 15초 간격 조회 시각을 시작 시각으로 대체하지 않습니다. SOOP 응답에 올바른 시각이 없거나 방송번호가 일치하지 않으면 이 칸을 비워 두며, `first_detected_at`을 시작 시각이라고 표시하지 않습니다. 기존 행의 `created_at`은 첫 배치 저장 시각입니다. 과거 방송에 시작 시각을 임의로 소급 입력하지 않습니다.
 
 이번 단계는 횟수 수집 전용입니다. 1회당 10P, 1~3위 보너스, 다니랜드 회원과 SOOP 계정 연결, 공개 채팅왕 페이지는 이 데이터가 실제로 쌓이는 것을 검증한 후 별도로 구현합니다. 지급 전 수집 누락과 순위 동률 처리 기준을 확정하세요.
