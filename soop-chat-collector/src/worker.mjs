@@ -23,6 +23,7 @@ let connectionStartedAt = 0;
 let reconnectTimer = null;
 const recordBroadcastTimes = process.env.SOOP_RECORD_BROADCAST_TIMES === 'true';
 const pendingDetections = new Map();
+let savingDetections = false;
 
 function kstTime(when) {
   return new Intl.DateTimeFormat('sv-SE', {
@@ -32,19 +33,23 @@ function kstTime(when) {
 }
 
 async function saveDetections() {
-  if (!recordBroadcastTimes) return;
-  for (const [bno, detectedAt] of pendingDetections) {
-    try {
-      await rpc('soop_chat_record_detection', {
-        p_token: bridgeToken, p_broadcast_no: bno, p_detected_at: detectedAt,
-      });
-      pendingDetections.delete(bno);
-      console.log(`broadcast detection saved: ${bno}, ${kstTime(new Date(detectedAt))} KST`);
-    } catch (error) {
-      console.error(`broadcast detection save failed: ${bno}, ${error.message}`);
-      break;
+  if (!recordBroadcastTimes || savingDetections) return;
+  savingDetections = true;
+  try {
+    for (const [bno, detectedAt] of pendingDetections) {
+      try {
+        const saved = await rpc('soop_chat_record_detection', {
+          p_token: bridgeToken, p_broadcast_no: bno, p_detected_at: detectedAt,
+        });
+        if (saved !== true) throw new Error('soop_chat_record_detection returned an unexpected result');
+        pendingDetections.delete(bno);
+        console.log(`broadcast detection saved: ${bno}, ${kstTime(new Date(detectedAt))} KST`);
+      } catch (error) {
+        console.error(`broadcast detection save failed: ${bno}, ${error.message}`);
+        break;
+      }
     }
-  }
+  } finally { savingDetections = false; }
 }
 
 function reconnectSoon(connection) {
@@ -108,7 +113,7 @@ async function poll() {
       if (active) await flush();
       const detectedAt = new Date();
       active = { bno, date: broadcastDate(detectedAt) };
-      pendingDetections.set(bno, detectedAt.toISOString());
+      if (recordBroadcastTimes) pendingDetections.set(bno, detectedAt.toISOString());
       await currentConnection?.disconnect().catch(() => {});
       currentConnection = null;
       console.log(`broadcast detected: ${bno}, ${kstTime(detectedAt)} KST (collector detection time)`);
