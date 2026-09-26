@@ -99,6 +99,7 @@ async function poll() {
   try {
     const info = await client.live.detail(streamerId);
     const bno = getBroadcast(info?.CHANNEL);
+    const observedAt = new Date();
     if (!bno) {
       if (active) {
         await flush();
@@ -111,7 +112,7 @@ async function poll() {
     }
     if (!active || active.bno !== bno) {
       if (active) await flush();
-      const detectedAt = new Date();
+      const detectedAt = observedAt;
       active = { bno, date: broadcastDate(detectedAt) };
       if (recordBroadcastTimes) pendingDetections.set(bno, detectedAt.toISOString());
       await currentConnection?.disconnect().catch(() => {});
