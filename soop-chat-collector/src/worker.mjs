@@ -21,6 +21,31 @@ let outbox = [];
 let currentConnection = null;
 let connectionStartedAt = 0;
 let reconnectTimer = null;
+const recordBroadcastTimes = process.env.SOOP_RECORD_BROADCAST_TIMES === 'true';
+const pendingDetections = new Map();
+
+function kstTime(when) {
+  return new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  }).format(when);
+}
+
+async function saveDetections() {
+  if (!recordBroadcastTimes) return;
+  for (const [bno, detectedAt] of pendingDetections) {
+    try {
+      await rpc('soop_chat_record_detection', {
+        p_token: bridgeToken, p_broadcast_no: bno, p_detected_at: detectedAt,
+      });
+      pendingDetections.delete(bno);
+      console.log(`broadcast detection saved: ${bno}, ${kstTime(new Date(detectedAt))} KST`);
+    } catch (error) {
+      console.error(`broadcast detection save failed: ${bno}, ${error.message}`);
+      break;
+    }
+  }
+}
 
 function reconnectSoon(connection) {
   if (stopping || currentConnection !== connection || reconnectTimer) return;
@@ -81,10 +106,13 @@ async function poll() {
     }
     if (!active || active.bno !== bno) {
       if (active) await flush();
-      active = { bno, date: broadcastDate(new Date()) };
+      const detectedAt = new Date();
+      active = { bno, date: broadcastDate(detectedAt) };
+      pendingDetections.set(bno, detectedAt.toISOString());
       await currentConnection?.disconnect().catch(() => {});
       currentConnection = null;
-      console.log(`broadcast detected: ${bno}, ${active.date} KST`);
+      console.log(`broadcast detected: ${bno}, ${kstTime(detectedAt)} KST (collector detection time)`);
+      void saveDetections();
     }
     const wsState = currentConnection?.ws?.readyState;
     if (wsState === 1 || (wsState === 0 && Date.now() - connectionStartedAt < 30000)) return;
@@ -117,6 +145,7 @@ async function poll() {
 
 setInterval(() => { void poll(); }, 15000);
 setInterval(() => { void flush(); }, 5000);
+setInterval(() => { void saveDetections(); }, 15000);
 const tokenValid = await rpc('songpyeon_bridge_token_ok', { p_token: bridgeToken });
 if (tokenValid !== true) throw new Error('SOOP bridge token verification failed');
 console.log('Readdy RPC and bridge token verified');
