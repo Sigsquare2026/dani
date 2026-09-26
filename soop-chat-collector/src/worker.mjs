@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Agent } from 'node:https';
-import { Counter, broadcastDate, getBroadcast } from './collector.mjs';
+import { Counter, broadcastDate, getBroadcast, soopStartForBroadcast } from './collector.mjs';
 
 const streamerId = process.env.SOOP_STREAMER_ID?.trim();
 const apiUrl = process.env.SUPABASE_URL?.replace(/\/$/, '');
@@ -24,6 +24,7 @@ let reconnectTimer = null;
 const recordBroadcastTimes = process.env.SOOP_RECORD_BROADCAST_TIMES === 'true';
 const pendingDetections = new Map();
 let savingDetections = false;
+let resolvingStart = false;
 
 function kstTime(when) {
   return new Intl.DateTimeFormat('sv-SE', {
@@ -36,20 +37,53 @@ async function saveDetections() {
   if (!recordBroadcastTimes || savingDetections) return;
   savingDetections = true;
   try {
-    for (const [bno, detectedAt] of pendingDetections) {
+    for (const [bno, entry] of pendingDetections) {
       try {
-        const saved = await rpc('soop_chat_record_detection', {
-          p_token: bridgeToken, p_broadcast_no: bno, p_detected_at: detectedAt,
+        const saved = await rpc('soop_chat_record_start', {
+          p_token: bridgeToken, p_broadcast_no: bno,
+          p_detected_at: entry.detectedAt, p_soop_started_at: entry.startedAt,
         });
-        if (saved !== true) throw new Error('soop_chat_record_detection returned an unexpected result');
-        pendingDetections.delete(bno);
-        console.log(`broadcast detection saved: ${bno}, ${kstTime(new Date(detectedAt))} KST`);
+        if (saved !== true) throw new Error('soop_chat_record_start returned an unexpected result');
+        if (pendingDetections.get(bno) === entry) pendingDetections.delete(bno);
+        console.log(`broadcast time saved: ${bno}, ${entry.startedAt ? `SOOP ${kstTime(new Date(entry.startedAt))}` : `detected ${kstTime(new Date(entry.detectedAt))}`} KST`);
       } catch (error) {
         console.error(`broadcast detection save failed: ${bno}, ${error.message}`);
         break;
       }
     }
   } finally { savingDetections = false; }
+}
+
+async function resolveSoopStart() {
+  const target = active;
+  if (!target || target.startedAt || resolvingStart || stopping) return;
+  resolvingStart = true;
+  try {
+    const response = await fetch(`https://chapi.sooplive.co.kr/api/${encodeURIComponent(streamerId)}/station`, {
+      signal: AbortSignal.timeout(7000),
+    });
+    if (!response.ok) throw new Error(`station HTTP ${response.status}`);
+    const station = await response.json();
+    const startedAt = soopStartForBroadcast(station, target.bno);
+    if (!startedAt) {
+      if (!target.startWarningLogged) {
+        console.log(`SOOP start time unavailable for ${target.bno}; will retry while live`);
+        target.startWarningLogged = true;
+      }
+      return;
+    }
+    target.startedAt = startedAt;
+    console.log(`SOOP broadcast started: ${target.bno}, ${kstTime(new Date(startedAt))} KST`);
+    if (recordBroadcastTimes) {
+      pendingDetections.set(target.bno, { detectedAt: target.detectedAt, startedAt });
+      void saveDetections();
+    }
+  } catch (error) {
+    if (!target.startWarningLogged) {
+      console.error(`SOOP start time lookup failed: ${target.bno}, ${error.message}`);
+      target.startWarningLogged = true;
+    }
+  } finally { resolvingStart = false; }
 }
 
 function reconnectSoon(connection) {
@@ -113,13 +147,14 @@ async function poll() {
     if (!active || active.bno !== bno) {
       if (active) await flush();
       const detectedAt = observedAt;
-      active = { bno, date: broadcastDate(detectedAt) };
-      if (recordBroadcastTimes) pendingDetections.set(bno, detectedAt.toISOString());
+      active = { bno, date: broadcastDate(detectedAt), detectedAt: detectedAt.toISOString(), startedAt: null };
+      if (recordBroadcastTimes) pendingDetections.set(bno, { detectedAt: active.detectedAt, startedAt: null });
       await currentConnection?.disconnect().catch(() => {});
       currentConnection = null;
       console.log(`broadcast detected: ${bno}, ${kstTime(detectedAt)} KST (collector detection time)`);
       void saveDetections();
     }
+    void resolveSoopStart();
     const wsState = currentConnection?.ws?.readyState;
     if (wsState === 1 || (wsState === 0 && Date.now() - connectionStartedAt < 30000)) return;
     await currentConnection?.disconnect().catch(() => {});
