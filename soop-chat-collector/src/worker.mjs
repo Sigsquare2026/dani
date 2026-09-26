@@ -60,6 +60,7 @@ async function resolveSoopStart() {
   resolvingStart = true;
   try {
     const response = await fetch(`https://chapi.sooplive.co.kr/api/${encodeURIComponent(streamerId)}/station`, {
+      headers: { 'User-Agent': client.options.userAgent },
       signal: AbortSignal.timeout(7000),
     });
     if (!response.ok) throw new Error(`station HTTP ${response.status}`);
