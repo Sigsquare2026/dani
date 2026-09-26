@@ -8,6 +8,22 @@ export function getBroadcast(channel) {
   return bno;
 }
 
+// SOOP station timestamps are KST strings without an explicit timezone.
+// Only trust the timestamp when the station response identifies the same BNO.
+export function soopStartForBroadcast(station, bno, now = new Date()) {
+  if (String(station?.broad?.broad_no ?? '') !== String(bno)) return null;
+  const value = station?.station?.broad_start;
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)) return null;
+  const start = new Date(`${value.replace(' ', 'T')}+09:00`);
+  if (!Number.isFinite(start.getTime()) || start.getTime() > now.getTime() + 60_000
+      || start.getTime() < now.getTime() - 366 * 86_400_000) return null;
+  const actualKst = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  }).format(start);
+  return actualKst === value ? start.toISOString() : null;
+}
+
 export class Counter {
   constructor() { this.pending = new Map(); }
   add(event, bno) {
