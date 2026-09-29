@@ -1,3 +1,5 @@
+-- OBSOLETE: do not apply. Readdy deployed a different donation ledger and
+-- soop_donation_record_batch RPC on 2026-09-29. Retained for historical context.
 -- Apply ONLY to the operating DaniLand Readdy Backend k2tbnmtgvh34rdbxdjk2.
 -- Apply before SOOP_DONATION_CAPTURE_ENABLED=true on Railway.
 create table if not exists public.soop_donation_batches (

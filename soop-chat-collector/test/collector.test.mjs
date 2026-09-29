@@ -25,10 +25,12 @@ test('date is KST and offline BNO is rejected', () => {
   assert.equal(getBroadcast({ RESULT: 0, BNO: '123' }), null);
 });
 
-test('donation row keeps raw ID but groups SOOP multiview IDs', () => {
-  const row = donationRow({ from: 'leee010(2)', fromUsername: '다니초이♥', amount: '333', receivedTime: '2026-09-29T08:00:00.000Z' }, 'text', '297448129');
-  assert.equal(row.user_id, 'leee010');
-  assert.equal(row.raw_user_id, 'leee010(2)');
+test('donation row sends Readdy the raw SOOP ID and one received timestamp', () => {
+  const row = donationRow({ from: 'leee010(2)', fromUsername: '다니초이♥', amount: '333' }, 'balloon', '297448129', new Date('2026-09-29T08:00:00Z'));
+  assert.equal(row.soop_user_id, 'leee010(2)');
+  assert.equal(row.donation_type, 'balloon');
   assert.equal(row.amount, 333);
-  assert.equal(donationRow({ from: 'leee010', amount: '0', receivedTime: '2026-09-29T08:00:00Z' }, 'text', '297448129'), null);
+  assert.equal(row.occurred_at, '2026-09-29T08:00:00.000Z');
+  assert.equal(donationRow({ from: 'leee010', amount: '0' }, 'balloon', '297448129'), null);
+  assert.equal(donationRow({ from: 'leee010', amount: '20' }, 'ad', '297448129'), null);
 });

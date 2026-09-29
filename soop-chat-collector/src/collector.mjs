@@ -12,21 +12,20 @@ export function normalizeDonationUserId(value) {
   return String(value ?? '').trim().replace(/\([1-9]\d*\)$/, '');
 }
 
-export function donationRow(event, type, bno) {
-  if (!['text', 'video', 'ad'].includes(type)) return null;
+export function donationRow(event, type, bno, receivedAt = new Date()) {
+  if (!['balloon', 'video', 'adballoon'].includes(type)) return null;
   const userId = normalizeDonationUserId(event?.from);
   const amount = Number(event?.amount);
   if (!/^\d+$/.test(String(bno)) || !userId || !Number.isSafeInteger(amount)
       || amount < 1 || amount > 1_000_000_000) return null;
-  const receivedAt = new Date(event?.receivedTime);
   if (!Number.isFinite(receivedAt.getTime())) return null;
   return {
     donation_type: type,
-    user_id: userId,
-    raw_user_id: String(event.from).trim(),
+    // Readdy stores this original ID and normalizes multiview suffixes itself.
+    soop_user_id: String(event.from).trim(),
     nickname: String(event.fromUsername ?? userId).slice(0, 100),
     amount,
-    received_at: receivedAt.toISOString(),
+    occurred_at: receivedAt.toISOString(),
   };
 }
 
