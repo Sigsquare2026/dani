@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Agent } from 'node:https';
-import { Counter, broadcastDate, getBroadcast, soopStartForBroadcast } from './collector.mjs';
+import { Counter, broadcastDate, donationRow, getBroadcast, soopStartForBroadcast } from './collector.mjs';
 
 const streamerId = process.env.SOOP_STREAMER_ID?.trim();
 const apiUrl = process.env.SUPABASE_URL?.replace(/\/$/, '');
@@ -22,9 +22,13 @@ let currentConnection = null;
 let connectionStartedAt = 0;
 let reconnectTimer = null;
 const recordBroadcastTimes = process.env.SOOP_RECORD_BROADCAST_TIMES === 'true';
+const captureDonations = process.env.SOOP_DONATION_CAPTURE_ENABLED === 'true';
 const pendingDetections = new Map();
 let savingDetections = false;
 let resolvingStart = false;
+let donationPending = [];
+let donationOutbox = [];
+let savingDonations = false;
 
 function kstTime(when) {
   return new Intl.DateTimeFormat('sv-SE', {
@@ -104,6 +108,56 @@ async function rpc(name, data) {
   return response.json();
 }
 
+function receiveDonation(event, type, bno) {
+  if (!captureDonations || active?.bno !== bno) return;
+  const row = donationRow(event, type, bno);
+  if (!row) {
+    console.error(`invalid SOOP ${type} donation for ${bno}`);
+    return;
+  }
+  donationPending.push({ ...row, event_id: randomUUID(), bno, date: active.date });
+}
+
+async function flushDonations() {
+  if (!captureDonations || savingDonations) return;
+  savingDonations = true;
+  try {
+    if (donationPending.length) {
+      const rows = donationPending;
+      donationPending = [];
+      const groups = new Map();
+      for (const row of rows) {
+        const group = groups.get(row.bno) ?? { date: row.date, rows: [] };
+        const { bno, date, ...donation } = row;
+        group.rows.push(donation);
+        groups.set(row.bno, group);
+      }
+      // Each outbox entry keeps its batch ID across HTTP retries.
+      for (const [bno, group] of groups) {
+        for (let offset = 0; offset < group.rows.length; offset += 500) {
+          donationOutbox.push({
+            batch_id: randomUUID(), broadcast_no: bno,
+            broadcast_date: group.date, rows: group.rows.slice(offset, offset + 500),
+          });
+        }
+      }
+    }
+    while (donationOutbox.length) {
+      const batch = donationOutbox[0];
+      const saved = await rpc('soop_donation_add_batch', {
+        p_token: bridgeToken, p_batch_id: batch.batch_id,
+        p_broadcast_no: batch.broadcast_no, p_broadcast_date: batch.broadcast_date,
+        p_rows: batch.rows,
+      });
+      if (saved !== true && saved !== false) throw new Error('soop_donation_add_batch returned an unexpected result');
+      console.log(`donation batch ${saved ? 'saved' : 'already saved'}: ${batch.broadcast_no}, ${batch.rows.length} events, ${batch.rows.reduce((sum, row) => sum + row.amount, 0)} units`);
+      donationOutbox.shift();
+    }
+  } catch (error) {
+    console.error('donation batch save failed, retrying same batch:', error.message);
+  } finally { savingDonations = false; }
+}
+
 async function flush() {
   if (flushing) return;
   flushing = true;
@@ -138,6 +192,7 @@ async function poll() {
     if (!bno) {
       if (active) {
         await flush();
+        await flushDonations();
         console.log(`broadcast ended: ${active.bno}`);
         active = null;
         await currentConnection?.disconnect().catch(() => {});
@@ -146,7 +201,10 @@ async function poll() {
       return;
     }
     if (!active || active.bno !== bno) {
-      if (active) await flush();
+      if (active) {
+        await flush();
+        await flushDonations();
+      }
       const detectedAt = observedAt;
       active = { bno, date: broadcastDate(detectedAt), detectedAt: detectedAt.toISOString(), startedAt: null };
       if (recordBroadcastTimes) pendingDetections.set(bno, { detectedAt: active.detectedAt, startedAt: null });
@@ -170,6 +228,9 @@ async function poll() {
     };
     connection.on(SoopChatEvent.CHAT, receive);
     connection.on(SoopChatEvent.EMOTICON, receive);
+    connection.on(SoopChatEvent.TEXT_DONATION, event => receiveDonation(event, 'text', thisBno));
+    connection.on(SoopChatEvent.VIDEO_DONATION, event => receiveDonation(event, 'video', thisBno));
+    connection.on(SoopChatEvent.AD_BALLOON_DONATION, event => receiveDonation(event, 'ad', thisBno));
     connection.on(SoopChatEvent.CONNECT, () => console.log(`chat connected: ${thisBno}`));
     connection.on(SoopChatEvent.DISCONNECT, () => {
       console.log(`chat disconnected: ${thisBno}`);
@@ -187,6 +248,7 @@ async function poll() {
 
 setInterval(() => { void poll(); }, 15000);
 setInterval(() => { void flush(); }, 5000);
+setInterval(() => { void flushDonations(); }, 5000);
 setInterval(() => { void saveDetections(); }, 15000);
 const tokenValid = await rpc('songpyeon_bridge_token_ok', { p_token: bridgeToken });
 if (tokenValid !== true) throw new Error('SOOP bridge token verification failed');
@@ -196,5 +258,6 @@ console.log('collector ready');
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, async () => {
   stopping = true;
   await flush();
-  process.exit(outbox.length ? 1 : 0);
+  await flushDonations();
+  process.exit(outbox.length || donationOutbox.length || donationPending.length ? 1 : 0);
 });

@@ -8,6 +8,28 @@ export function getBroadcast(channel) {
   return bno;
 }
 
+export function normalizeDonationUserId(value) {
+  return String(value ?? '').trim().replace(/\([1-9]\d*\)$/, '');
+}
+
+export function donationRow(event, type, bno) {
+  if (!['text', 'video', 'ad'].includes(type)) return null;
+  const userId = normalizeDonationUserId(event?.from);
+  const amount = Number(event?.amount);
+  if (!/^\d+$/.test(String(bno)) || !userId || !Number.isSafeInteger(amount)
+      || amount < 1 || amount > 1_000_000_000) return null;
+  const receivedAt = new Date(event?.receivedTime);
+  if (!Number.isFinite(receivedAt.getTime())) return null;
+  return {
+    donation_type: type,
+    user_id: userId,
+    raw_user_id: String(event.from).trim(),
+    nickname: String(event.fromUsername ?? userId).slice(0, 100),
+    amount,
+    received_at: receivedAt.toISOString(),
+  };
+}
+
 // SOOP station timestamps are KST strings without an explicit timezone.
 // Only trust the timestamp when the station response identifies the same BNO.
 export function soopStartForBroadcast(station, bno, now = new Date()) {
