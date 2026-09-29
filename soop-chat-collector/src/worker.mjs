@@ -152,9 +152,14 @@ function receiveDonation(event, type, bno, replayRisk) {
   }
   // One event per request. The UUID survives HTTP retries, while separate
   // consecutive donations always get separate request IDs.
+  const requestId = randomUUID();
   donationPending.push({
-    request_id: randomUUID(), broadcast_no: bno,
-    broadcast_date: active.date, event: row, replay_risk: replayRisk,
+    request_id: requestId, broadcast_no: bno,
+    broadcast_date: active.date,
+    // This is a collector-generated key, not a SOOP transaction ID. It only
+    // protects retries of the same observed event, not replay on reconnect.
+    event: { ...row, source_event_key: `collector:${requestId}` },
+    replay_risk: replayRisk,
   });
   void flushDonations();
 }
