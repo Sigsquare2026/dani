@@ -29,6 +29,9 @@ let resolvingStart = false;
 let donationPending = [];
 let donationOutbox = [];
 let savingDonations = false;
+const donationGaps = new Map();
+const reportedDonationGaps = new Set();
+let reportingDonationGaps = false;
 
 function kstTime(when) {
   return new Intl.DateTimeFormat('sv-SE', {
@@ -78,6 +81,10 @@ async function resolveSoopStart() {
       return;
     }
     target.startedAt = startedAt;
+    target.date = broadcastDate(new Date(startedAt));
+    for (const entry of [...donationPending, ...donationOutbox]) {
+      if (entry.broadcast_no === target.bno) entry.broadcast_date = target.date;
+    }
     console.log(`SOOP broadcast started: ${target.bno}, ${kstTime(new Date(startedAt))} KST`);
     if (recordBroadcastTimes) {
       pendingDetections.set(target.bno, { detectedAt: target.detectedAt, startedAt });
@@ -108,14 +115,48 @@ async function rpc(name, data) {
   return response.json();
 }
 
-function receiveDonation(event, type, bno) {
+function queueDonationGap(bno, reason) {
+  if (!captureDonations || !bno || reportedDonationGaps.has(bno) || donationGaps.has(bno)) return;
+  donationGaps.set(bno, reason);
+  void reportDonationGaps();
+}
+
+async function reportDonationGaps() {
+  if (reportingDonationGaps) return;
+  reportingDonationGaps = true;
+  try {
+    for (const [bno, reason] of donationGaps) {
+      try {
+        const result = await rpc('soop_donation_report_gap', {
+          p_token: bridgeToken, p_broadcast_no: bno, p_reason: reason,
+        });
+        if (result?.ok !== true) throw new Error('soop_donation_report_gap returned an unexpected result');
+        reportedDonationGaps.add(bno);
+        donationGaps.delete(bno);
+        console.log(`donation review alert saved: ${bno}`);
+      } catch (error) {
+        console.error(`donation review alert failed: ${bno}, ${error.message}`);
+        break;
+      }
+    }
+  } finally { reportingDonationGaps = false; }
+}
+
+function receiveDonation(event, type, bno, replayRisk) {
   if (!captureDonations || active?.bno !== bno) return;
   const row = donationRow(event, type, bno);
   if (!row) {
     console.error(`invalid SOOP ${type} donation for ${bno}`);
+    queueDonationGap(bno, '후원 이벤트의 아이디 또는 개수를 읽지 못했습니다.');
     return;
   }
-  donationPending.push({ ...row, event_id: randomUUID(), bno, date: active.date });
+  // One event per request. The UUID survives HTTP retries, while separate
+  // consecutive donations always get separate request IDs.
+  donationPending.push({
+    request_id: randomUUID(), broadcast_no: bno,
+    broadcast_date: active.date, event: row, replay_risk: replayRisk,
+  });
+  void flushDonations();
 }
 
 async function flushDonations() {
@@ -123,38 +164,28 @@ async function flushDonations() {
   savingDonations = true;
   try {
     if (donationPending.length) {
-      const rows = donationPending;
+      donationOutbox.push(...donationPending);
       donationPending = [];
-      const groups = new Map();
-      for (const row of rows) {
-        const group = groups.get(row.bno) ?? { date: row.date, rows: [] };
-        const { bno, date, ...donation } = row;
-        group.rows.push(donation);
-        groups.set(row.bno, group);
-      }
-      // Each outbox entry keeps its batch ID across HTTP retries.
-      for (const [bno, group] of groups) {
-        for (let offset = 0; offset < group.rows.length; offset += 500) {
-          donationOutbox.push({
-            batch_id: randomUUID(), broadcast_no: bno,
-            broadcast_date: group.date, rows: group.rows.slice(offset, offset + 500),
-          });
-        }
-      }
     }
     while (donationOutbox.length) {
-      const batch = donationOutbox[0];
-      const saved = await rpc('soop_donation_add_batch', {
-        p_token: bridgeToken, p_batch_id: batch.batch_id,
-        p_broadcast_no: batch.broadcast_no, p_broadcast_date: batch.broadcast_date,
-        p_rows: batch.rows,
+      const entry = donationOutbox[0];
+      const result = await rpc('soop_donation_record_batch', {
+        p_token: bridgeToken, p_request_id: entry.request_id,
+        p_broadcast_no: entry.broadcast_no, p_broadcast_date: entry.broadcast_date,
+        p_events: [entry.event], p_replay_risk: entry.replay_risk,
       });
-      if (saved !== true && saved !== false) throw new Error('soop_donation_add_batch returned an unexpected result');
-      console.log(`donation batch ${saved ? 'saved' : 'already saved'}: ${batch.broadcast_no}, ${batch.rows.length} events, ${batch.rows.reduce((sum, row) => sum + row.amount, 0)} units`);
+      if (result?.ok !== true || typeof result.duplicate_request !== 'boolean') {
+        throw new Error('soop_donation_record_batch returned an unexpected result');
+      }
+      if (!result.duplicate_request && result.accepted !== 1) {
+        queueDonationGap(entry.broadcast_no, '후원 저장 RPC에서 해당 이벤트가 반영되지 않았습니다.');
+      }
+      console.log(`donation ${result.duplicate_request ? 'already saved' : 'saved'}: ${entry.broadcast_no}, ${entry.event.donation_type}, ${entry.event.amount} units, review ${result.needs_review ?? 0}`);
       donationOutbox.shift();
     }
   } catch (error) {
-    console.error('donation batch save failed, retrying same batch:', error.message);
+    console.error('donation save failed, retrying same request:', error.message);
+    queueDonationGap(donationOutbox[0]?.broadcast_no, '후원 저장 요청이 실패했거나 응답을 확인하지 못했습니다.');
   } finally { savingDonations = false; }
 }
 
@@ -228,20 +259,31 @@ async function poll() {
     };
     connection.on(SoopChatEvent.CHAT, receive);
     connection.on(SoopChatEvent.EMOTICON, receive);
-    connection.on(SoopChatEvent.TEXT_DONATION, event => receiveDonation(event, 'text', thisBno));
-    connection.on(SoopChatEvent.VIDEO_DONATION, event => receiveDonation(event, 'video', thisBno));
-    connection.on(SoopChatEvent.AD_BALLOON_DONATION, event => receiveDonation(event, 'ad', thisBno));
-    connection.on(SoopChatEvent.CONNECT, () => console.log(`chat connected: ${thisBno}`));
+    // SOOP has no stable donation ID in these packets. Flag events received
+    // just after a new connection for review rather than guessing duplicates.
+    let replayRiskUntil = Number.POSITIVE_INFINITY;
+    connection.on(SoopChatEvent.TEXT_DONATION, event => receiveDonation(event, 'balloon', thisBno, Date.now() < replayRiskUntil));
+    connection.on(SoopChatEvent.VIDEO_DONATION, event => receiveDonation(event, 'video', thisBno, Date.now() < replayRiskUntil));
+    connection.on(SoopChatEvent.AD_BALLOON_DONATION, event => receiveDonation(event, 'adballoon', thisBno, Date.now() < replayRiskUntil));
+    connection.on(SoopChatEvent.CONNECT, () => {
+      replayRiskUntil = Date.now() + 30_000;
+      console.log(`chat connected: ${thisBno}`);
+    });
     connection.on(SoopChatEvent.DISCONNECT, () => {
       console.log(`chat disconnected: ${thisBno}`);
+      if (active?.bno === thisBno) queueDonationGap(thisBno, '방송 중 SOOP 채팅 연결이 끊겼습니다. 누락 가능 구간을 확인해 주세요.');
       reconnectSoon(connection);
     });
     await connection.connect();
     connection.ws?.on('close', (code, reason) => {
       console.log(`socket closed: ${thisBno}, code ${code}${reason?.length ? `, reason ${reason.toString().slice(0, 100)}` : ''}`);
+      if (active?.bno === thisBno) queueDonationGap(thisBno, '방송 중 SOOP 채팅 소켓이 닫혔습니다. 누락 가능 구간을 확인해 주세요.');
       reconnectSoon(connection);
     });
-    connection.ws?.on('error', error => console.error('socket:', error.message));
+    connection.ws?.on('error', error => {
+      console.error('socket:', error.message);
+      if (active?.bno === thisBno) queueDonationGap(thisBno, '방송 중 SOOP 채팅 소켓 오류가 발생했습니다.');
+    });
   } catch (error) { console.error('SOOP poll/connect:', error.message); }
   finally { polling = false; }
 }
@@ -249,6 +291,7 @@ async function poll() {
 setInterval(() => { void poll(); }, 15000);
 setInterval(() => { void flush(); }, 5000);
 setInterval(() => { void flushDonations(); }, 5000);
+setInterval(() => { void reportDonationGaps(); }, 15000);
 setInterval(() => { void saveDetections(); }, 15000);
 const tokenValid = await rpc('songpyeon_bridge_token_ok', { p_token: bridgeToken });
 if (tokenValid !== true) throw new Error('SOOP bridge token verification failed');
@@ -259,5 +302,6 @@ for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, async () => {
   stopping = true;
   await flush();
   await flushDonations();
-  process.exit(outbox.length || donationOutbox.length || donationPending.length ? 1 : 0);
+  await reportDonationGaps();
+  process.exit(outbox.length || donationOutbox.length || donationPending.length || donationGaps.size ? 1 : 0);
 });
